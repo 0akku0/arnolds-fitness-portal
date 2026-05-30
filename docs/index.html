@@ -2,26 +2,346 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Arnold's Fitness â€” Stats Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arnold's Fitness — Statistics Report</title>
+<!-- Chart.js loaded from a CDN (Content Delivery Network) — no installation needed -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5;
-         display: flex; align-items: center; justify-content: center;
-         min-height: 100vh; margin: 0; }
-  .box { background: #fff; border-radius: 12px; padding: 40px 48px;
-         box-shadow: 0 2px 16px rgba(0,0,0,.1); text-align: center; max-width: 480px; }
-  h1 { color: #1565c0; font-size: 1.6rem; margin-bottom: 12px; }
-  p { color: #555; line-height: 1.6; }
-  .badge { display: inline-block; margin-top: 20px; background: #1565c0; color: #fff;
-           padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #222; }
+  header { background: linear-gradient(135deg,#1a237e,#1565c0); color: #fff;
+            padding: 28px 40px; }
+  header h1 { font-size: 2rem; }
+  header p  { opacity: .8; margin-top: 6px; }
+  .tabs { display: flex; gap: 8px; padding: 20px 40px 0; background: #fff;
+          border-bottom: 2px solid #e0e0e0; }
+  .tab { padding: 10px 22px; border-radius: 8px 8px 0 0; cursor: pointer;
+          font-weight: 600; background: #e8eaf6; color: #3949ab; border: none;
+          font-size: 0.95rem; transition: all .2s; }
+  .tab.active, .tab:hover { background: #1565c0; color: #fff; }
+  .panel { display: none; padding: 30px 40px; }
+  .panel.active { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .card { background: #fff; border-radius: 12px; padding: 24px;
+          box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .card h3 { font-size: 1rem; color: #555; margin-bottom: 16px; font-weight: 600;
+              text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px;
+              grid-column: 1/-1; }
+  .kpi { background: #fff; border-radius: 10px; padding: 18px 22px;
+          box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+  .kpi .val { font-size: 2rem; font-weight: 700; color: #1565c0; }
+  .kpi .lbl { font-size: .85rem; color: #777; margin-top: 4px; }
+  .profit-pos { color: #2e7d32 !important; }
+  .profit-neg { color: #c62828 !important; }
+  canvas { max-height: 280px; }
+  footer { text-align: center; padding: 24px; color: #999; font-size: .85rem; }
 </style>
 </head>
 <body>
-<div class="box">
-  <h1>Arnold's Fitness Dashboard</h1>
-  <p>The live stats dashboard is generated locally by running <code>stats_html.py</code>.<br><br>
-     Clone the repo, run <code>fitnessproject2.py</code> once to generate data, then run
-     <code>stats_html.py</code> â€” the dashboard will open in your browser.</p>
-  <a class="badge" href="https://github.com/0akku0/arnolds-fitness-portal">View on GitHub</a>
+
+<header>
+  <h1>@@@@ Arnold's Fitness — Statistics Dashboard @@@@</h1>
+  <p>Generated on Saturday, 30 May 2026 &nbsp;|&nbsp;
+    Data from Nov 2025 onwards &nbsp;|&nbsp;
+    Use the tabs to switch time periods.</p>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('w4')">Last 4 Weeks</button>
+  <button class="tab"        onclick="showTab('m3')">Last 3 Months</button>
+  <button class="tab"        onclick="showTab('y1')">Last 12 Months</button>
 </div>
-</body>
-</html>
+
+<div id="w4" class="panel active">
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="val">2,729</div><div class="lbl">Total Class Bookings</div></div>
+    <div class="kpi"><div class="val">96</div><div class="lbl">Packages Sold</div></div>
+    <div class="kpi"><div class="val">$54,530</div><div class="lbl">Package Revenue</div></div>
+    <div class="kpi"><div class="val profit-pos">$23,607</div><div class="lbl">Net Profit (SGD)</div></div>
+  </div>
+
+  <!-- Registrations bar chart -->
+  <div class="card">
+    <h3>Class Registrations by Type</h3>
+    <canvas id="reg_w4"></canvas>
+  </div>
+
+  <!-- Packages pie chart -->
+  <div class="card">
+    <h3>Packages Purchased by Type</h3>
+    <canvas id="pkg_w4"></canvas>
+  </div>
+
+  <!-- Top 5 trainers -->
+  <div class="card">
+    <h3>Top 5 Trainers by Bookings</h3>
+    <canvas id="top_w4"></canvas>
+  </div>
+
+  <!-- Profit breakdown -->
+  <div class="card">
+    <h3>Profit Breakdown</h3>
+    <canvas id="pnl_w4"></canvas>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // Registrations horizontal bar chart
+  new Chart(document.getElementById("reg_w4"), {
+    type: "bar",
+    data: {
+      labels: ["Pilates", "Yoga", "MMA", "Boxing", "KPop Fitness"],
+      datasets: [{ label: "Bookings", data: [427, 701, 502, 203, 896],
+                  backgroundColor: ["#1976D2", "#388E3C", "#D32F2F", "#F57C00", "#7B1FA2"], borderRadius: 6 }]
+    },
+    options: { indexAxis: "y", plugins: { legend: { display: false } },
+              scales: { x: { beginAtZero: true } } }
+  });
+
+  // Packages doughnut chart
+  new Chart(document.getElementById("pkg_w4"), {
+    type: "doughnut",
+    data: {
+      labels: ["Pilates", "Yoga", "MMA", "Boxing", "KPop Fitness"],
+      datasets: [{ data: [24, 17, 19, 14, 22],
+                  backgroundColor: ["#1976D2", "#388E3C", "#D32F2F", "#F57C00", "#7B1FA2"], hoverOffset: 10 }]
+    },
+    options: { plugins: { legend: { position: "right" } } }
+  });
+
+  // Top 5 trainers bar chart
+  new Chart(document.getElementById("top_w4"), {
+    type: "bar",
+    data: {
+      labels: ["Janice Chew", "Linda Lee", "Dean Richards", "Indira Raj", "Vincent Koh"],
+      datasets: [{ label: "Bookings", data: [572, 387, 362, 344, 324],
+                  backgroundColor: ["#FFD700","#C0C0C0","#CD7F32","#1976D2","#388E3C"],
+                  borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true } } }
+  });
+
+  // Profit stacked bar chart
+  new Chart(document.getElementById("pnl_w4"), {
+    type: "bar",
+    data: {
+      labels: ["Revenue","Rental","Electricity","Trainer Fees","Net Profit"],
+      datasets: [{ label: "SGD $",
+                  data: [67411,-17000,-4064,-22740,23607],
+                  backgroundColor: [
+                    "#388E3C",
+                    "#D32F2F","#E57373","#EF9A9A",
+                    "#2e7d32"
+                  ],
+                  borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: false } } }
+  });
+})();
+</script>
+
+<div id="m3" class="panel ">
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="val">8,910</div><div class="lbl">Total Class Bookings</div></div>
+    <div class="kpi"><div class="val">309</div><div class="lbl">Packages Sold</div></div>
+    <div class="kpi"><div class="val">$173,570</div><div class="lbl">Package Revenue</div></div>
+    <div class="kpi"><div class="val profit-pos">$64,872</div><div class="lbl">Net Profit (SGD)</div></div>
+  </div>
+
+  <!-- Registrations bar chart -->
+  <div class="card">
+    <h3>Class Registrations by Type</h3>
+    <canvas id="reg_m3"></canvas>
+  </div>
+
+  <!-- Packages pie chart -->
+  <div class="card">
+    <h3>Packages Purchased by Type</h3>
+    <canvas id="pkg_m3"></canvas>
+  </div>
+
+  <!-- Top 5 trainers -->
+  <div class="card">
+    <h3>Top 5 Trainers by Bookings</h3>
+    <canvas id="top_m3"></canvas>
+  </div>
+
+  <!-- Profit breakdown -->
+  <div class="card">
+    <h3>Profit Breakdown</h3>
+    <canvas id="pnl_m3"></canvas>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // Registrations horizontal bar chart
+  new Chart(document.getElementById("reg_m3"), {
+    type: "bar",
+    data: {
+      labels: ["Pilates", "Yoga", "MMA", "Boxing", "KPop Fitness"],
+      datasets: [{ label: "Bookings", data: [1419, 2321, 1647, 640, 2883],
+                  backgroundColor: ["#1976D2", "#388E3C", "#D32F2F", "#F57C00", "#7B1FA2"], borderRadius: 6 }]
+    },
+    options: { indexAxis: "y", plugins: { legend: { display: false } },
+              scales: { x: { beginAtZero: true } } }
+  });
+
+  // Packages doughnut chart
+  new Chart(document.getElementById("pkg_m3"), {
+    type: "doughnut",
+    data: {
+      labels: ["Pilates", "Yoga", "MMA", "Boxing", "KPop Fitness"],
+      datasets: [{ data: [65, 69, 47, 56, 72],
+                  backgroundColor: ["#1976D2", "#388E3C", "#D32F2F", "#F57C00", "#7B1FA2"], hoverOffset: 10 }]
+    },
+    options: { plugins: { legend: { position: "right" } } }
+  });
+
+  // Top 5 trainers bar chart
+  new Chart(document.getElementById("top_m3"), {
+    type: "bar",
+    data: {
+      labels: ["Janice Chew", "Linda Lee", "Dean Richards", "Indira Raj", "Vincent Koh"],
+      datasets: [{ label: "Bookings", data: [1788, 1263, 1188, 1175, 1095],
+                  backgroundColor: ["#FFD700","#C0C0C0","#CD7F32","#1976D2","#388E3C"],
+                  borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true } } }
+  });
+
+  // Profit stacked bar chart
+  new Chart(document.getElementById("pnl_m3"), {
+    type: "bar",
+    data: {
+      labels: ["Revenue","Rental","Electricity","Trainer Fees","Net Profit"],
+      datasets: [{ label: "SGD $",
+                  data: [219985,-68000,-13208,-73905,64872],
+                  backgroundColor: [
+                    "#388E3C",
+                    "#D32F2F","#E57373","#EF9A9A",
+                    "#2e7d32"
+                  ],
+                  borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: false } } }
+  });
+})();
+</script>
+
+<div id="y1" class="panel ">
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="val">26,697</div><div class="lbl">Total Class Bookings</div></div>
+    <div class="kpi"><div class="val">975</div><div class="lbl">Packages Sold</div></div>
+    <div class="kpi"><div class="val">$552,510</div><div class="lbl">Package Revenue</div></div>
+    <div class="kpi"><div class="val profit-pos">$245,426</div><div class="lbl">Net Profit (SGD)</div></div>
+  </div>
+
+  <!-- Registrations bar chart -->
+  <div class="card">
+    <h3>Class Registrations by Type</h3>
+    <canvas id="reg_y1"></canvas>
+  </div>
+
+  <!-- Packages pie chart -->
+  <div class="card">
+    <h3>Packages Purchased by Type</h3>
+    <canvas id="pkg_y1"></canvas>
+  </div>
+
+  <!-- Top 5 trainers -->
+  <div class="card">
+    <h3>Top 5 Trainers by Bookings</h3>
+    <canvas id="top_y1"></canvas>
+  </div>
+
+  <!-- Profit breakdown -->
+  <div class="card">
+    <h3>Profit Breakdown</h3>
+    <canvas id="pnl_y1"></canvas>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // Registrations horizontal bar chart
+  new Chart(document.getElementById("reg_y1"), {
+    type: "bar",
+    data: {
+      labels: ["Pilates", "Yoga", "MMA", "Boxing", "KPop Fitness"],
+      datasets: [{ label: "Bookings", data: [4338, 6876, 4932, 1916, 8635],
+                  backgroundColor: ["#1976D2", "#388E3C", "#D32F2F", "#F57C00", "#7B1FA2"], borderRadius: 6 }]
+    },
+    options: { indexAxis: "y", plugins: { legend: { display: false } },
+              scales: { x: { beginAtZero: true } } }
+  });
+
+  // Packages doughnut chart
+  new Chart(document.getElementById("pkg_y1"), {
+    type: "doughnut",
+    data: {
+      labels: ["Pilates", "Yoga", "MMA", "Boxing", "KPop Fitness"],
+      datasets: [{ data: [192, 195, 166, 203, 219],
+                  backgroundColor: ["#1976D2", "#388E3C", "#D32F2F", "#F57C00", "#7B1FA2"], hoverOffset: 10 }]
+    },
+    options: { plugins: { legend: { position: "right" } } }
+  });
+
+  // Top 5 trainers bar chart
+  new Chart(document.getElementById("top_y1"), {
+    type: "bar",
+    data: {
+      labels: ["Janice Chew", "Linda Lee", "Dean Richards", "Indira Raj", "Vincent Koh"],
+      datasets: [{ label: "Bookings", data: [5382, 3785, 3586, 3566, 3253],
+                  backgroundColor: ["#FFD700","#C0C0C0","#CD7F32","#1976D2","#388E3C"],
+                  borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: true } } }
+  });
+
+  // Profit stacked bar chart
+  new Chart(document.getElementById("pnl_y1"), {
+    type: "bar",
+    data: {
+      labels: ["Revenue","Rental","Electricity","Trainer Fees","Net Profit"],
+      datasets: [{ label: "SGD $",
+                  data: [659088,-153000,-39520,-221142,245426],
+                  backgroundColor: [
+                    "#388E3C",
+                    "#D32F2F","#E57373","#EF9A9A",
+                    "#2e7d32"
+                  ],
+                  borderRadius: 6 }]
+    },
+    options: { plugins: { legend: { display: false } },
+              scales: { y: { beginAtZero: false } } }
+  });
+})();
+</script>
+
+<footer>Arnold's Fitness Management Portal — Statistics Report</footer>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body></html>
