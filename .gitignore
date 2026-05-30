@@ -1,0 +1,12 @@
+# Runtime data — generated when the app runs
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
